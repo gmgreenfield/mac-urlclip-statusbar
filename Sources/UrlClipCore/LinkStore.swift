@@ -58,16 +58,26 @@ public final class LinkStore {
 
     @discardableResult
     public func capture(urls: [String], clipboardText: String, now: Date = Date()) throws -> Int {
+        try capture(values: urls.map(URLExtractor.trimURL), clipboardText: clipboardText, now: now)
+    }
+
+    @discardableResult
+    public func capture(matches: [ClipboardMatch], clipboardText: String, now: Date = Date()) throws -> Int {
+        try capture(values: matches.map(\.value), clipboardText: clipboardText, now: now)
+    }
+
+    @discardableResult
+    public func capture(values: [String], clipboardText: String, now: Date = Date()) throws -> Int {
         let timestamp = iso8601Timestamp(from: now)
         var count = 0
 
-        for rawURL in urls {
-            let url = URLExtractor.trimURL(rawURL)
-            guard !url.isEmpty else {
+        for rawValue in values {
+            let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !value.isEmpty else {
                 continue
             }
 
-            let normalizedURL = URLExtractor.normalizedURL(url)
+            let normalizedValue = ClipboardExtractor.normalizedCapturedValue(value)
             try withStatement(
                 """
                 INSERT INTO links (
@@ -86,8 +96,8 @@ public final class LinkStore {
                     last_clipboard = excluded.last_clipboard
                 """
             ) { statement in
-                bind(url, at: 1, in: statement)
-                bind(normalizedURL, at: 2, in: statement)
+                bind(value, at: 1, in: statement)
+                bind(normalizedValue, at: 2, in: statement)
                 bind(timestamp, at: 3, in: statement)
                 bind(timestamp, at: 4, in: statement)
                 bind(clipboardText, at: 5, in: statement)
